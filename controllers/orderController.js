@@ -1,4 +1,5 @@
 import { Order } from '../models/Order.js';
+import { DeliveryArea } from '../models/DeliveryArea.js';
 import { generateOrderReceiptPDF } from '../utils/pdfGenerator.js';
 
 // @desc    Place a new order (Checkout)
@@ -10,6 +11,7 @@ export const createOrder = async (req, res, next) => {
       customerName,
       phone,
       shippingAddress,
+      deliveryLocation,
       paymentMethod,
       trxId,
       items,
@@ -50,16 +52,60 @@ export const createOrder = async (req, res, next) => {
       };
     });
 
+    // Calculate items subtotal on server
+    const itemsSubtotal = formattedItems.reduce(
+      (sum, item) => sum + (Number(item.product.price) * Number(item.quantity)),
+      0
+    );
+
+    // Independently validate delivery area and fee from database (Server is Source of Truth)
+    let verifiedShippingFee = Number(shippingFee || 120);
+    let deliveryLocationSnapshot = null;
+
+    const targetUpazilaId = deliveryLocation?.upazilaId || deliveryLocation?.id;
+    if (targetUpazilaId) {
+      const configuredArea = await DeliveryArea.findOne({
+        upazilaId: Number(targetUpazilaId)
+      });
+
+      if (!configuredArea) {
+        return res.status(400).json({
+          error: 'The selected delivery upazila is not currently supported for delivery.'
+        });
+      }
+
+      if (!configuredArea.isActive) {
+        return res.status(400).json({
+          error: `Delivery to ${configuredArea.upazilaName} is currently temporarily suspended or inactive.`
+        });
+      }
+
+      verifiedShippingFee = Number(configuredArea.deliveryFee);
+      deliveryLocationSnapshot = {
+        divisionId: configuredArea.divisionId,
+        divisionName: configuredArea.divisionName,
+        districtId: configuredArea.districtId,
+        districtName: configuredArea.districtName,
+        upazilaId: configuredArea.upazilaId,
+        upazilaName: configuredArea.upazilaName,
+        deliveryFee: configuredArea.deliveryFee
+      };
+    }
+
+    // Secure server-calculated total
+    const finalTotalAmount = itemsSubtotal + verifiedShippingFee;
+
     const order = await Order.create({
       userId: req.user ? req.user._id : null,
       customerName,
       phone,
       shippingAddress,
+      deliveryLocation: deliveryLocationSnapshot,
       paymentMethod,
       trxId: trxId ? String(trxId).trim().toUpperCase() : null,
       items: formattedItems,
-      shippingFee,
-      totalAmount,
+      shippingFee: verifiedShippingFee,
+      totalAmount: finalTotalAmount,
       status: 'Placed'
     });
 
@@ -151,12 +197,12 @@ export const updateOrderStatus = async (req, res, next) => {
     const param = String(req.params.orderNumber || req.params.id || '').trim();
     console.log(`[Server orderController] 🚚 Order status update request received for orderParam: "${param}", target status: "${status}"`);
 
-    const ALLOWED_STATUSES = ['Placed', 'Confirmed', 'Shipped', 'Delivered'];
+    const ALLOWED_STATUSES = ['Pending', 'Placed', 'Confirmed', 'Shipped', 'Delivered'];
     const matchedStatus = ALLOWED_STATUSES.find(s => s.toLowerCase() === String(status || '').trim().toLowerCase());
 
     if (!matchedStatus) {
       console.warn(`[Server orderController] ⚠️ Invalid order status transition: ${status}`);
-      return res.status(400).json({ error: 'Invalid order status transition. Must be Placed, Confirmed, Shipped, or Delivered' });
+      return res.status(400).json({ error: 'Invalid order status transition. Must be Pending, Placed, Confirmed, Shipped, or Delivered' });
     }
 
     const digitsOnly = param.replace(/[^0-9]/g, '');

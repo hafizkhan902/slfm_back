@@ -34,6 +34,21 @@ export const protect = async (req, res, next) => {
   return res.status(401).json({ error: 'Not authorized, no valid bearer token provided' });
 };
 
+// Optional Authentication Middleware (populates req.user if token is present, does not reject if missing)
+export const optionalProtect = async (req, res, next) => {
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'shahlajuk_furniture_mart_secure_jwt_secret_key_2026_change_me');
+      req.user = await User.findById(decoded.id).select('-password');
+    } catch {
+      // Ignore token failure for public/optional routes
+      req.user = null;
+    }
+  }
+  next();
+};
+
 // Admin Authorization Guard Middleware
 export const adminOnly = (req, res, next) => {
   if (req.user && (req.user.role === 'ADMIN' || process.env.NODE_ENV === 'development')) {
@@ -42,3 +57,4 @@ export const adminOnly = (req, res, next) => {
     res.status(403).json({ error: 'Access denied: Admin privileges required' });
   }
 };
+

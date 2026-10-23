@@ -107,13 +107,19 @@ export const generateOrderReceiptPDF = (order, res) => {
     .font('Helvetica-Bold')
     .text('CUSTOMER & DELIVERY DETAILS', 55, 202);
 
+  const customerName = order.customerName || order.name || 'Valued Customer';
+  const deliveryAddress = order.shippingAddress || order.address || 'Standard Delivery Location';
+  const deliveryAreaText = order.deliveryLocation?.upazilaName
+    ? `${order.deliveryLocation.upazilaName}, ${order.deliveryLocation.districtName}, ${order.deliveryLocation.divisionName}`
+    : '';
+
   doc
     .fillColor(TEXT_DARK)
     .fontSize(10)
     .font('Helvetica-Bold')
     .text('Customer Name:', 55, 222)
     .font('Helvetica')
-    .text(order.name || 'Valued Customer', 145, 222);
+    .text(customerName, 145, 222);
 
   doc
     .font('Helvetica-Bold')
@@ -123,9 +129,9 @@ export const generateOrderReceiptPDF = (order, res) => {
 
   doc
     .font('Helvetica-Bold')
-    .text('Delivery Address:', 300, 222)
+    .text('Delivery Address:', 300, 220)
     .font('Helvetica')
-    .text(order.address || 'Standard Delivery Location', 390, 222, { width: 155 });
+    .text(deliveryAreaText ? `${deliveryAddress}\n[${deliveryAreaText}]` : deliveryAddress, 390, 220, { width: 155 });
 
   // 4. Itemized Order Table Header
   const tableTop = 280;
@@ -176,20 +182,35 @@ export const generateOrderReceiptPDF = (order, res) => {
 
   // 5. Total Summary Box
   const totalAmount = order.totalAmount || 0;
+  const shippingFee = order.shippingFee || 0;
+  const itemsSubtotal = Math.max(0, totalAmount - shippingFee);
 
-  doc.rect(330, yPosition, 225, 40).fill(BG_LIGHT).strokeColor('#E0D6C8').stroke();
+  doc.rect(330, yPosition, 225, 54).fill(BG_LIGHT).strokeColor('#E0D6C8').stroke();
+
+  doc
+    .fillColor(TEXT_MUTED)
+    .fontSize(9)
+    .font('Helvetica')
+    .text('Items Subtotal:', 340, yPosition + 8)
+    .text(`BDT ${itemsSubtotal.toLocaleString()}`, 430, yPosition + 8, { width: 115, align: 'right' });
+
+  doc
+    .text('Delivery Charge:', 340, yPosition + 22)
+    .text(`BDT ${shippingFee.toLocaleString()}`, 430, yPosition + 22, { width: 115, align: 'right' });
 
   doc
     .fillColor(TEXT_DARK)
-    .fontSize(12)
+    .fontSize(10)
     .font('Helvetica-Bold')
-    .text('GRAND TOTAL:', 340, yPosition + 13);
+    .text('GRAND TOTAL:', 340, yPosition + 37);
 
   doc
     .fillColor(WALNUT)
-    .fontSize(14)
+    .fontSize(11)
     .font('Helvetica-Bold')
-    .text(`BDT ${totalAmount.toLocaleString()}`, 430, yPosition + 12, { width: 115, align: 'right' });
+    .text(`BDT ${totalAmount.toLocaleString()}`, 430, yPosition + 36, { width: 115, align: 'right' });
+
+  yPosition += 20;
 
   // 6. Footer Notes
   const footerY = 740;

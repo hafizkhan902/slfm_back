@@ -17,6 +17,8 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import visitorRoutes from './routes/visitorRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import deliveryRoutes from './routes/deliveryRoutes.js';
+import inquiryRoutes from './routes/inquiryRoutes.js';
 
 // Load Environment Variables from server/.env
 const __filename = fileURLToPath(import.meta.url);
@@ -31,27 +33,13 @@ connectDB().then(() => {
 
 const app = express();
 
-// 1. Security Headers (Helmet) & HTTP Request Debugging Middleware
+// 1. Security Headers (Helmet)
 app.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' }
   })
 );
-
-app.use((req, res, next) => {
-  const start = Date.now();
-  const reqId = Math.random().toString(36).substring(2, 8);
-  console.log(`🛡️ [Helmet Debug] [${new Date().toLocaleTimeString()}] [Req #${reqId}] ${req.method} ${req.originalUrl} | IP: ${req.ip || '127.0.0.1'}`);
-
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    const icon = res.statusCode >= 400 ? '⚠️' : '✅';
-    console.log(`${icon} [Helmet Debug] [Req #${reqId}] ${req.method} ${req.originalUrl} -> Status ${res.statusCode} (${duration}ms)`);
-  });
-
-  next();
-});
 
 app.use(compression());
 
@@ -84,6 +72,9 @@ app.use('/api/admin/visitors', visitorRoutes);
 app.use('/api/visitors', visitorRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/inquiries', inquiryRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 5. Error Handling Middlewares
 app.use(notFound);
