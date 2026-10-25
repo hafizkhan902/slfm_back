@@ -20,6 +20,7 @@ import settingsRoutes from './routes/settingsRoutes.js';
 import deliveryRoutes from './routes/deliveryRoutes.js';
 import inquiryRoutes from './routes/inquiryRoutes.js';
 import themeRoutes from './routes/themeRoutes.js';
+import bannerRoutes from './routes/bannerRoutes.js';
 
 // Load Environment Variables from server/.env
 const __filename = fileURLToPath(import.meta.url);
@@ -76,6 +77,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/theme-section', themeRoutes);
+app.use('/api/native-banner', bannerRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 5. Error Handling Middlewares
