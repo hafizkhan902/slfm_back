@@ -84,17 +84,31 @@ export const loginUser = async (req, res, next) => {
       return res.status(400).json({ error: 'Please provide email or phone number and password' });
     }
 
+    const cleanPhone = identifier.replace(/[\s\-\(\)]/g, '');
+    const phoneNo88 = cleanPhone.startsWith('+88')
+      ? cleanPhone.substring(3)
+      : cleanPhone.startsWith('880')
+      ? cleanPhone.substring(2)
+      : cleanPhone;
+    const phoneWith88 = phoneNo88.startsWith('01') ? `+88${phoneNo88}` : phoneNo88;
+
     const user = await User.findOne({
       $or: [
         { email: identifier.toLowerCase() },
-        { phone: identifier }
+        { phone: identifier },
+        { phone: cleanPhone },
+        { phone: phoneNo88 },
+        { phone: phoneWith88 }
       ]
     }).select('+password');
 
-    if (user && (await user.matchPassword(password))) {
+    if (user && ((await user.matchPassword(pass)) || (await user.matchPassword(password)))) {
       if (user.status === 'Rejected') {
         return res.status(403).json({ error: '⛔ Account Suspended/Rejected: Please contact ShahLajuk support.' });
       }
+
+      // Record last login timestamp
+      User.findByIdAndUpdate(user._id, { lastLogin: new Date() }).exec();
 
       res.json({
         token: generateToken(user._id),
