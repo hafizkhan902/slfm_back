@@ -1,6 +1,7 @@
 import { Order } from '../models/Order.js';
 import { DeliveryArea } from '../models/DeliveryArea.js';
 import { generateOrderReceiptPDF } from '../utils/pdfGenerator.js';
+import { generateServerReceiptHtml } from '../utils/htmlReceiptGenerator.js';
 
 // @desc    Place a new order (Checkout)
 // @route   POST /api/orders
@@ -265,6 +266,51 @@ export const downloadOrderReceipt = async (req, res, next) => {
     generateOrderReceiptPDF(order, res);
   } catch (err) {
     console.error('[Server orderController] ❌ PDF Receipt generation error:', err);
+    next(err);
+  }
+};
+
+// @desc    Server-Side Rendered (SSR) HTML Order Receipt
+// @route   GET /api/orders/:orderNumber/receipt
+// @access  Public / Customer / Admin
+export const renderOrderReceiptHTML = async (req, res, next) => {
+  try {
+    const param = String(req.params.orderNumber || req.params.id || '').trim();
+    const digitsOnly = param.replace(/[^0-9]/g, '');
+
+    const queryConditions = [
+      { orderNumber: param },
+      { orderNumber: param.toUpperCase() },
+      ...(digitsOnly ? [
+        { orderNumber: `SLM-${digitsOnly}` },
+        { orderNumber: `SLFM-${digitsOnly}` },
+        { orderNumber: { $regex: digitsOnly, $options: 'i' } }
+      ] : []),
+      ...(param.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: param }] : [])
+    ];
+
+    const order = await Order.findOne({ $or: queryConditions });
+
+    if (!order) {
+      return res.status(404).send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head><meta charset="UTF-8"><title>Order Not Found | ShahLajuk Furniture Mart</title></head>
+        <body style="font-family: sans-serif; text-align: center; padding: 60px 20px; background: #FAF8F5; color: #231D18;">
+          <h2 style="color: #4A2C19; margin-bottom: 12px;">Order Not Found</h2>
+          <p style="color: #666; margin-bottom: 24px;">No order matching "${param}" could be located in our system.</p>
+          <a href="/" style="display: inline-block; background: #4A2C19; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-weight: 600;">Return to Store</a>
+        </body>
+        </html>
+      `);
+    }
+
+    const autoPrint = req.query.print === 'true' || req.query.autoprint === '1';
+    const html = generateServerReceiptHtml(order, autoPrint);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    console.error('[Server orderController] ❌ HTML Receipt generation error:', err);
     next(err);
   }
 };
