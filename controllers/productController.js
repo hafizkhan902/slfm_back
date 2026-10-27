@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Product } from '../models/Product.js';
 import { clearProductCache } from '../middleware/cacheMiddleware.js';
 
@@ -56,9 +57,12 @@ export const getProducts = async (req, res, next) => {
 // @access  Public
 export const getProductById = async (req, res, next) => {
   try {
-    const product = await Product.findOne({
-      $or: [{ _id: req.params.id }, { productId: req.params.id }]
-    });
+    const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
+    const query = isObjectId
+      ? { $or: [{ _id: req.params.id }, { productId: req.params.id }] }
+      : { productId: req.params.id };
+
+    const product = await Product.findOne(query);
 
     if (!product) {
       return res.status(404).json({ error: 'Furniture item not found' });
