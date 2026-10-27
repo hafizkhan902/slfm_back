@@ -22,6 +22,8 @@ import inquiryRoutes from './routes/inquiryRoutes.js';
 import themeRoutes from './routes/themeRoutes.js';
 import bannerRoutes from './routes/bannerRoutes.js';
 import shareRoutes from './routes/shareRoutes.js';
+import seoRoutes from './routes/seoRoutes.js';
+import { socialCrawlerMiddleware } from './middleware/socialCrawlerMiddleware.js';
 
 // Load Environment Variables from server/.env
 const __filename = fileURLToPath(import.meta.url);
@@ -56,6 +58,12 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 configureSanitization(app);
+
+// Social Media Scraper Interceptor (Facebook, WhatsApp, Twitter, etc.)
+app.use(socialCrawlerMiddleware);
+
+// SEO Routes (Sitemap.xml, robots.txt, OG preview)
+app.use(seoRoutes);
 
 // 4. API Routes
 app.get('/api/health', (req, res) => {
