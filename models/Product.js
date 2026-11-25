@@ -74,10 +74,23 @@ const productSchema = new mongoose.Schema(
       required: true
     },
     specs: {
-      dimensions: { type: String, required: true },
-      material: { type: String, required: true },
-      warranty: { type: String, required: true },
-      finish: { type: String, required: true }
+      title: { type: String, default: 'Specifications', trim: true },
+      dimensions: { type: String, default: '', trim: true },
+      material: { type: String, default: '', trim: true },
+      warranty: { type: String, default: '', trim: true },
+      finish: { type: String, default: '', trim: true },
+      items: {
+        type: [
+          new mongoose.Schema(
+            {
+              label: { type: String, required: true, trim: true },
+              value: { type: String, required: true, trim: true }
+            },
+            { _id: false }
+          )
+        ],
+        default: []
+      }
     },
     isAvailable: {
       type: Boolean,

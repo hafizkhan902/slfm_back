@@ -1,6 +1,13 @@
 import mongoose from 'mongoose';
 import { Product } from '../models/Product.js';
 import { clearProductCache } from '../middleware/cacheMiddleware.js';
+import { normalizeSpecs } from '../utils/productSpecs.js';
+
+function presentProduct(product) {
+  const obj = product.toObject();
+  obj.specs = normalizeSpecs(obj.specs);
+  return obj;
+}
 
 // @desc    Get all products with category/room filtering, search, and sorting
 // @route   GET /api/products
@@ -45,7 +52,7 @@ export const getProducts = async (req, res, next) => {
       success: true,
       count: products.length,
       totalCount,
-      products
+      products: products.map(presentProduct)
     });
   } catch (err) {
     next(err);
@@ -68,7 +75,7 @@ export const getProductById = async (req, res, next) => {
       return res.status(404).json({ error: 'Furniture item not found' });
     }
 
-    res.json(product);
+    res.json(presentProduct(product));
   } catch (err) {
     next(err);
   }
@@ -79,9 +86,12 @@ export const getProductById = async (req, res, next) => {
 // @access  Private/Admin
 export const createProduct = async (req, res, next) => {
   try {
-    const product = await Product.create(req.body);
+    const product = await Product.create({
+      ...req.body,
+      specs: normalizeSpecs(req.body.specs)
+    });
     await clearProductCache();
-    res.status(201).json(product);
+    res.status(201).json(presentProduct(product));
   } catch (err) {
     next(err);
   }
@@ -92,7 +102,12 @@ export const createProduct = async (req, res, next) => {
 // @access  Private/Admin
 export const updateProduct = async (req, res, next) => {
   try {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+    const updates = { ...req.body };
+    if (updates.specs) {
+      updates.specs = normalizeSpecs(updates.specs);
+    }
+
+    const product = await Product.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true
     });
@@ -102,7 +117,7 @@ export const updateProduct = async (req, res, next) => {
     }
 
     await clearProductCache();
-    res.json(product);
+    res.json(presentProduct(product));
   } catch (err) {
     next(err);
   }
